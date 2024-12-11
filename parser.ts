@@ -1,6 +1,6 @@
 import { Maybe, maybeBind, maybeWrap, nothing } from './maybe';
 
-type Parser<T> = (s: string) => Maybe<[T, string]>;
+export type Parser<T> = (s: string) => Maybe<[T, string]>;
 
 export function result<T>(t: T): Parser<T> {
     return (s: string) => {
@@ -74,12 +74,6 @@ export function many<T>(p: Parser<T>): Parser<T[]> {
     })
 }
 
-export function parserMap<Q,R>(p: Parser<Q>, f: (q: Q) => R): Parser<R> {
-    return parserBind(p, (q) => {
-        return result(f(q));
-    });
-}
-
 export function text(st: string): Parser<string> {
     if (st.length === 0) {
         return result('');
@@ -121,21 +115,21 @@ const number: Parser<number> = or(parserBind(many(digit), (x) => {
 //              <pexpr> <op> <pexpr> 
 // <expr>   ::= <atom> | <pexpr> | <opexpr>
 
-type Va     = string; // 'item1' | 'item2'
-type Lit    = number;
-type Op     = string; // '+' | '-' | '*' | '/' | '^';
-type Lp     = string; // '(';
-type Rp     = string; // ')';
-type Atom   = { type: 'atom', val: Va | Lit };
-type Pexpr  = { type: 'pexpr', val: [Lp,Expr,Rp] };
-type Opexpr = { 
+export type Va     = string; // 'item1' | 'item2'
+export type Lit    = number;
+export type Op     = string; // '+' | '-' | '*' | '/' | '^';
+export type Lp     = string; // '(';
+export type Rp     = string; // ')';
+export type Atom   = { type: 'atom', val: Va | Lit };
+export type Pexpr  = { type: 'pexpr', val: [Lp,Expr,Rp] };
+export type Opexpr = { 
     type: 'opexpr', 
     val: [Atom,Op,Atom]  |
          [Atom,Op,Pexpr] |
          [Pexpr,Op,Atom] |
          [Pexpr,Op,Pexpr]
 };
-type Expr    = Atom | Pexpr | Opexpr;
+export type Expr    = Atom | Pexpr | Opexpr;
 
 function logExpr(expr: Expr): string {
     switch(expr.type) {
@@ -160,7 +154,6 @@ function logOpexpr(opexpr: Opexpr): string {
     return logExpr(opexpr.val[0]) + opexpr.val[1] + logExpr(opexpr.val[2]);
 }
 
-
 function chain<A,B,C>(
     pa: Parser<A>,
     pb: Parser<B>,
@@ -181,7 +174,7 @@ const atomParser: Parser<Atom> =
     ), (x) => {
         return result({
             type: 'atom',
-            val: x as Va | number
+            val: x
         })
     });
 
@@ -211,6 +204,7 @@ const opexprParser: Parser<Opexpr> =
             val: x
         });
     });
+
 function exprParser(s: string): Maybe<[Expr,string]> {
     return or(opexprParser,
         or(pexprParser, atomParser)
@@ -251,4 +245,6 @@ console.log('|=========||=========||=========||=========');
 validateExpr('(item1+(1)');
 console.log('|=========||=========||=========||=========');
 validateExpr('(item1+(1))*1');
+console.log('|=========||=========||=========||=========');
+validateExpr('(item1+(1+(item2^(7+itm1))))*1');
 console.log('|=========||=========||=========||=========');

@@ -7,7 +7,6 @@ exports.char = char;
 exports.parserBind = parserBind;
 exports.or = or;
 exports.many = many;
-exports.parserMap = parserMap;
 exports.text = text;
 var maybe_1 = require("./maybe");
 function result(t) {
@@ -80,11 +79,6 @@ function many(p) {
                 });
             }
         };
-    });
-}
-function parserMap(p, f) {
-    return parserBind(p, function (q) {
-        return result(f(q));
     });
 }
 function text(st) {
@@ -197,4 +191,6 @@ console.log('|=========||=========||=========||=========');
 validateExpr('(item1+(1)');
 console.log('|=========||=========||=========||=========');
 validateExpr('(item1+(1))*1');
+console.log('|=========||=========||=========||=========');
+validateExpr('(item1+(1+(item2^(7+itm1))))*1');
 console.log('|=========||=========||=========||=========');
