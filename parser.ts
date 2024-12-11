@@ -8,6 +8,12 @@ export function result<T>(t: T): Parser<T> {
     }
 }
 
+export function zero<T>(): Parser<T> {
+    return (s: string) => {
+        return nothing;
+    }
+}
+
 export const digit: Parser<number> = (s: string) => {
     if (s.length === 0) {
         return nothing;
@@ -88,59 +94,7 @@ export function text(st: string): Parser<string> {
     }
 }
 
-export function chain<A,B,C,D,E>(
-    pa: Parser<A>,
-    pb: Parser<B>,
-    pc: Parser<C>,
-    pd: Parser<D>,
-    pe: Parser<E>,
-): Parser<[A,B,C,D,E]> {
-    return parserBind(pa, (a) => {
-        return parserBind(pb, (b) => {
-            return parserBind(pc, (c) => {
-                return parserBind(pd, (d) => {
-                    return parserBind(pe, (e) => {
-                        return result([a,b,c,d,e]);
-                    });
-                });
-            });
-        });
-    });
-}
-
-// example
-
-type AddOp = string;
-type SubOp = string;
-type MulOp = string;
-type DivOp = string;
-type ExpOp = string;
-type Lp = string;
-type Rp = string;
-
-type Literal = number;
-type Var = string;
-type Add = [Lp,Expr,AddOp,Expr,Rp];
-type Sub = [Lp,Expr,SubOp,Expr,Rp];
-type Mul = [Lp,Expr,MulOp,Expr,Rp];
-type Div = [Lp,Expr,DivOp,Expr,Rp];
-type Exp = [Lp,Expr,ExpOp,Expr,Rp];
-type Expr = Literal | Var | Add | Sub | Mul | Div | Exp;
-
-
-
-const item1Parser: Parser<Var> = text("item1");
-const item2Parser: Parser<Var> = text("item2");
-
-const addOpParser: Parser<AddOp> = char('+');
-const subOpParser: Parser<SubOp> = char('-');
-const mulOpParser : Parser<MulOp> = char('*');
-const divOpParser : Parser<DivOp> = char('/');
-const expOpParser : Parser<ExpOp> = char('^');
-const lpParser : Parser<Lp> = char('(');
-const rpParser : Parser<Rp> = char(')');
-
-const literalParser: Parser<Literal> = or(parserBind(many(digit), (x) => {
+const number: Parser<number> = or(parserBind(many(digit), (x) => {
     return parserBind(char('.'), (y) => {
         return parserBind(many(digit), (z) => {
             const [i,j,k] = [x,y,z];
@@ -153,31 +107,148 @@ const literalParser: Parser<Literal> = or(parserBind(many(digit), (x) => {
     return result(Number(x.map(String).join('')));
 }));
 
-const varParser: Parser<Var> = or(item1Parser, item2Parser);
-const addParser: Parser<Add> = chain(lpParser,exprParser,addOpParser,exprParser,rpParser);
-const subParser: Parser<Sub> = chain(lpParser,exprParser,subOpParser,exprParser,rpParser);
-const mulParser: Parser<Mul> = chain(lpParser,exprParser,mulOpParser,exprParser,rpParser);
-const divParser: Parser<Div> = chain(lpParser,exprParser,divOpParser,exprParser,rpParser);
-const expParser: Parser<Exp> = chain(lpParser,exprParser,expOpParser,exprParser,rpParser);
-function exprParser(s: string) {
-    return or(
-        literalParser,or(
-            varParser,or(
-                addParser,or(
-                    subParser,or(
-                        mulParser,or(
-                            divParser,expParser
-                        )
-                    )
-                )
+// grammar
+// <va>     ::= 'item1' | 'item2'
+// <lit>    ::= number
+// <op>     ::= '+' | '-' | '*' | '/' | '^'
+// <lp>     ::= '('
+// <rp>     ::= ')'
+// <atom>   ::= <var> | <lit>
+// <pexpr>  ::= <lp> <expr> <rp>
+// <opexpr> ::= <atom>  <op> <atom>  | 
+//              <atom>  <op> <pexpr> |
+//              <pexpr> <op> <atom>  |
+//              <pexpr> <op> <pexpr> 
+// <expr>   ::= <atom> | <pexpr> | <opexpr>
+
+type Va     = string; // 'item1' | 'item2'
+type Lit    = number;
+type Op     = string; // '+' | '-' | '*' | '/' | '^';
+type Lp     = string; // '(';
+type Rp     = string; // ')';
+type Atom   = { type: 'atom', val: Va | Lit };
+type Pexpr  = { type: 'pexpr', val: [Lp,Expr,Rp] };
+type Opexpr = { 
+    type: 'opexpr', 
+    val: [Atom,Op,Atom]  |
+         [Atom,Op,Pexpr] |
+         [Pexpr,Op,Atom] |
+         [Pexpr,Op,Pexpr]
+};
+type Expr    = Atom | Pexpr | Opexpr;
+
+function logExpr(expr: Expr): string {
+    switch(expr.type) {
+        case 'atom':
+            return logAtom(expr);
+        case 'pexpr':
+            return logPexpr(expr);
+        case 'opexpr':
+            return logOpexpr(expr);
+    }
+}
+
+function logAtom(atom: Atom): string {
+    return String(atom.val);
+}
+
+function logPexpr(pexpr: Pexpr): string {
+    return '(' + logExpr(pexpr.val[1]) + ')';
+}
+
+function logOpexpr(opexpr: Opexpr): string {
+    return logExpr(opexpr.val[0]) + opexpr.val[1] + logExpr(opexpr.val[2]);
+}
+
+
+function chain<A,B,C>(
+    pa: Parser<A>,
+    pb: Parser<B>,
+    pc: Parser<C>
+): Parser<[A,B,C]> {
+    return parserBind(pa, (x) => {
+        return parserBind(pb, (y) => {
+            return parserBind(pc, (z) => {
+                return result([x,y,z]);
+            })
+        })
+    })
+}
+
+const atomParser: Parser<Atom> =
+    parserBind(or(number,
+        or(text("item1"), text("item2"))
+    ), (x) => {
+        return result({
+            type: 'atom',
+            val: x as Va | number
+        })
+    });
+
+const pexprParser: Parser<Pexpr> =
+    parserBind(chain(char('('),exprParser,char(')')), (x) => {
+        return result({
+            type: 'pexpr',
+            val: x
+        });
+    });
+
+const opParser: Parser<Op> =
+    or(char('+'),
+        or(char('-'),
+            or(char('*'),
+                or(char('/'), char('^'))
             )
         )
-    )(s)};
+    );
+const opexprParser: Parser<Opexpr> =
+    parserBind(or(chain(pexprParser,opParser,pexprParser),
+        or(chain(pexprParser,opParser,atomParser),
+            or(chain(atomParser,opParser,pexprParser), chain(atomParser,opParser,atomParser)))
+    ), (x) => {
+        return result({
+            type: 'opexpr',
+            val: x
+        });
+    });
+function exprParser(s: string): Maybe<[Expr,string]> {
+    return or(opexprParser,
+        or(pexprParser, atomParser)
+    )(s);
+}
 
-console.log(exprParser("(2+item1)"));
-console.log(exprParser("(((item1^2)+(item2^6))/(12-2))"));
-console.log(exprParser("(((item1^)+(item2^6))/(12-2))"));
-console.log(exprParser("((item1^)+(item2^6))/(12-2))"));
-console.log(exprParser("(((item1^2)+(item2^6))/(12-2))"));
-console.log(exprParser("(((item1^2)(item2^6))/(12-2))"));
-console.log(exprParser("(((itm1^2)+(item2^6))/(12-2))"));
+function validateExpr(s: string) {
+    console.log('input:', s);
+    maybeBind(exprParser(s), (x) => {
+        const [v,rest] = x;
+        const l = logExpr(v);
+        console.log('parsed:', l);
+        if (rest === '') {
+            console.log('parsed everything');
+            console.log('valid');
+        } else {
+            console.log('left:', rest);
+            console.log('parse error after:', l);
+            console.log('invalid');
+        }
+        return nothing;
+    });
+    console.log('parsed: nothing');
+    console.log('left:', s);
+}
+
+console.log('|=========||=========||=========||=========');
+validateExpr('ite1+3.a14');
+console.log('|=========||=========||=========||=========');
+validateExpr('item1a3.a14');
+console.log('|=========||=========||=========||=========');
+validateExpr('1)');
+console.log('|=========||=========||=========||=========');
+validateExpr('item1(+1');
+console.log('|=========||=========||=========||=========');
+validateExpr('(item1)+(1)');
+console.log('|=========||=========||=========||=========');
+validateExpr('(item1+(1)');
+console.log('|=========||=========||=========||=========');
+validateExpr('(item1+(1))*1');
+console.log('|=========||=========||=========||=========');
