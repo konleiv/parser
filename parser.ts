@@ -57,6 +57,8 @@ export function or<Q,R>(pq: Parser<Q>, pr: Parser<R>): Parser<Q|R> {
     };
 }
 
+
+
 export function many<T>(p: Parser<T>): Parser<T[]> {
     return parserBind(p, (valp) => {
         const q = many(p);
@@ -88,7 +90,7 @@ export function text(st: string): Parser<string> {
     }
 }
 
-const number: Parser<number> = or(parserBind(many(digit), (x) => {
+export const number: Parser<number> = or(parserBind(many(digit), (x) => {
     return parserBind(char('.'), (y) => {
         return parserBind(many(digit), (z) => {
             const [i,j,k] = [x,y,z];
@@ -142,11 +144,11 @@ function logExpr(expr: Expr): string {
     }
 }
 
-function logAtom(atom: Atom): string {
+export function logAtom(atom: Atom): string {
     return String(atom.val);
 }
 
-function logPexpr(pexpr: Pexpr): string {
+export function logPexpr(pexpr: Pexpr): string {
     return '(' + logExpr(pexpr.val[1]) + ')';
 }
 
@@ -168,18 +170,20 @@ function chain<A,B,C>(
     })
 }
 
-const atomParser: Parser<Atom> =
+export const atomParser: Parser<Atom> =
     parserBind(or(number,
         or(text("item1"), text("item2"))
     ), (x) => {
+        console.log('atomParser');
         return result({
             type: 'atom',
             val: x
         })
     });
 
-const pexprParser: Parser<Pexpr> =
+export const pexprParser: Parser<Pexpr> =
     parserBind(chain(char('('),exprParser,char(')')), (x) => {
+        console.log('pexprParser');
         return result({
             type: 'pexpr',
             val: x
@@ -194,6 +198,7 @@ const opParser: Parser<Op> =
             )
         )
     );
+
 const opexprParser: Parser<Opexpr> =
     parserBind(or(chain(pexprParser,opParser,pexprParser),
         or(chain(pexprParser,opParser,atomParser),
@@ -205,7 +210,7 @@ const opexprParser: Parser<Opexpr> =
         });
     });
 
-function exprParser(s: string): Maybe<[Expr,string]> {
+export function exprParser(s: string): Maybe<[Expr,string]> {
     return or(opexprParser,
         or(pexprParser, atomParser)
     )(s);
@@ -231,20 +236,29 @@ function validateExpr(s: string) {
     console.log('left:', s);
 }
 
-console.log('|=========||=========||=========||=========');
-validateExpr('ite1+3.a14');
-console.log('|=========||=========||=========||=========');
-validateExpr('item1a3.a14');
-console.log('|=========||=========||=========||=========');
-validateExpr('1)');
-console.log('|=========||=========||=========||=========');
-validateExpr('item1(+1');
-console.log('|=========||=========||=========||=========');
-validateExpr('(item1)+(1)');
-console.log('|=========||=========||=========||=========');
-validateExpr('(item1+(1)');
-console.log('|=========||=========||=========||=========');
-validateExpr('(item1+(1))*1');
-console.log('|=========||=========||=========||=========');
-validateExpr('(item1+(1+(item2^(7+itm1))))*1');
-console.log('|=========||=========||=========||=========');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('ite1+3.a14');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('item1a3.a14');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('1)');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('item1(+1');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('(item1)+(1)');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('(item1+(1)');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('(item1+(1))*1');
+// console.log('|=========||=========||=========||=========');
+// validateExpr('(item1+(1+(item2^(7+itm1))))*1');
+// console.log('|=========||=========||=========||=========');
+// console.log(opexprParser('(item1+(1+(item2^(7+itm1))))*1'));
+// console.log(pexprParser('(item1+(1+(item2^(7+itm1))))'));
+// console.log(exprParser('item1+(1+(item2^(7+itm1)))'));
+// console.log(pexprParser('(1+(item2^(7+itm1)))'));
+// console.log(exprParser('1+(item2^(7+itm1))'));
+// console.log(pexprParser('(item2^(7+itm1))'));
+// console.log(exprParser('item2^(7+itm1)'));
+// console.log(pexprParser('(7+itm1)'));
+// console.log(exprParser('7+itm1'));

@@ -9,12 +9,12 @@ export function maybeBind<Q,R>(mq: Maybe<Q>, f: (q: Q) => Maybe<R>): Maybe<R> {
         return nothing;
     } else {
         return f(mq.val);
-    }
-}
+    };
+};
 
-export function maybeWrap<T>(t: T): Just<T> {
+export function maybeWrap<T>(t: T): Maybe<T> {
     return {
         type: 'just',
         val: t
     };
-}
+};
